@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generación de Informes y Facturas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.4/jspdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.5.0-beta4/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0;
+    }
+    #parametros-informe, #contenedor-graficos {
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+    #parametros-informe {
+      background-color: #fff;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    label, select, button {
+      margin: 0 10px;
+    }
+    canvas {
+      max-width: 600px;
+      height: auto;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div id="parametros-informe">
+    <label for="tipo-informe">Tipo de Informe:</label>
+    <select id="tipo-informe">
+      <option value="clientes">Clientes más frecuentes</option>
+    </select>
+    <button onclick="generarInforme()">Generar Informe</button>
+  </div>
+  <div id="contenedor-graficos">
+    <canvas id="graficoClientes" style="max-width: 600px; display: none;"></canvas>
+  </div>
+  <button id="descargarPDF" style="display: none;" onclick="descargarPDF()">Descargar PDF</button>
+
+  <script>
+    function generarInforme() {
+      const tipoInforme = document.getElementById('tipo-informe').value;
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+          if (xhr.status === 200) {
+            const datos = JSON.parse(xhr.responseText);
+            console.log("Datos recibidos:", datos); // Verificar los datos recibidos
+            if (tipoInforme === 'clientes') {
+              if (Object.keys(datos.clientes).length > 0) {
+                console.log("Mostrando gráfico de clientes");
+                mostrarGrafico('graficoClientes', datos.clientes, 'Clientes Más Frecuentes');
+                document.getElementById('graficoClientes').style.display = 'block';
+                document.getElementById('descargarPDF').style.display = 'block';
+              } else {
+                console.log('No hay datos de clientes disponibles.');
+              }
+            }
+          } else {
+            console.error('Error al obtener los datos:', xhr.status, xhr.statusText);
+          }
+        }
+      };
+      xhr.open('GET', 'obtener_datos.php', true);
+      xhr.send();
+    }
+
+    function mostrarGrafico(idCanvas, datos, titulo) {
+      const ctx = document.getElementById(idCanvas).getContext('2d');
+
+      // Destruir el gráfico existente si existe
+      if (window.myChart) {
+        window.myChart.destroy();
+      }
+
+      window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(datos),
+          datasets: [{
+            label: titulo,
+            data: Object.values(datos),
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function descargarPDF() {
+      const pdf = new jsPDF('landscape');
+      const canvasClientes = document.getElementById('graficoClientes');
+
+      pdf.setFontSize(22);
+      pdf.text("Informe de Clientes", 10, 20);
+
+      html2canvas(canvasClientes, {
+        willReadFrequently: true
+      }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 10, 30, 280, 150);
+        pdf.save('informe_clientes.pdf');
+      });
+    }
+  </script>
+</body>
+</html>
